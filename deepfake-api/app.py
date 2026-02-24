@@ -3,9 +3,13 @@ RealityScan Deepfake API - EfficientNet B7 (selimsef/dfdc_deepfake_challenge)
 Serviço para rodar em RunPod ou Cloud Run com GPU.
 Suporta: vídeo (upload) e frames base64 (Sentry Mini HUD).
 """
+import os
+
+# Força CPU antes de importar torch (ex.: RunPod com GPU sm_120 não suportada pelo PyTorch)
+if os.environ.get("FORCE_CPU"):
+    os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
 import base64
-import os
 import re
 import sys
 import tempfile
@@ -14,6 +18,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 import torch
+torch.set_default_device("cpu")
 from fastapi import FastAPI, File, UploadFile, HTTPException, Body
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -28,15 +33,32 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 
 # Modelos carregados uma vez no startup
 models = []
+# GPU ou CPU: só usa CUDA se houver pelo menos uma GPU (evita "No CUDA GPUs are available")
+def _resolve_device():
+    if os.environ.get("FORCE_CPU"):
+        return "cpu"
+    dev = os.environ.get("DEVICE", "").strip().lower()
+    if dev in ("cpu", "cuda"):
+        return dev
+    if torch.cuda.is_available() and torch.cuda.device_count() > 0:
+        return "cuda"
+    return "cpu"
+
+DEVICE = _resolve_device()
 WEIGHTS_DIR = os.environ.get("WEIGHTS_DIR", "/app/weights")
 MODEL_FILES = os.environ.get("MODEL_FILES", "final_111_DeepFakeClassifier_tf_efficientnet_b7_ns_0_36").split(",")
 
 
 def load_models():
     """Carrega EfficientNet B7 do selimsef/dfdc_deepfake_challenge."""
-    global models
+    global models, DEVICE
     if models:
         return
+
+    # Garante dispositivo válido (CPU se não houver GPU disponível)
+    DEVICE = _resolve_device()
+    if DEVICE != "cuda":
+        print(f"ℹ️ Usando dispositivo: {DEVICE} (inferência mais lenta que GPU).")
 
     sys.path.insert(0, DFDCDIR)
     from kernel_utils import VideoReader, FaceExtractor, confident_strategy
@@ -46,18 +68,37 @@ def load_models():
     if not weights_path.exists():
         raise RuntimeError(f"WEIGHTS_DIR não encontrado: {WEIGHTS_DIR}. Execute run_setup.sh primeiro.")
 
+    use_half = DEVICE == "cuda"
     for fname in MODEL_FILES:
         fpath = weights_path / fname.strip()
         if not fpath.exists():
             print(f"⚠️ Peso não encontrado: {fpath}, pulando.")
             continue
-        model = DeepFakeClassifier(encoder="tf_efficientnet_b7_ns").to("cuda")
-        ckpt = torch.load(fpath, map_location="cpu")
-        state = ckpt.get("state_dict", ckpt)
-        model.load_state_dict({re.sub(r"^module\.", "", k): v for k, v in state.items()}, strict=True)
-        model.eval()
-        models.append(model.half())
-        del ckpt
+        try:
+            model = DeepFakeClassifier(encoder="tf_efficientnet_b7_ns").to(DEVICE)
+            ckpt = torch.load(fpath, map_location="cpu", weights_only=True)
+            state = ckpt.get("state_dict", ckpt)
+            model.load_state_dict({re.sub(r"^module\.", "", k): v for k, v in state.items()}, strict=True)
+            model.eval()
+            if use_half:
+                model = model.half()
+            models.append(model)
+            del ckpt
+        except RuntimeError as e:
+            err_msg = str(e).lower()
+            if "cuda" in DEVICE and ("no kernel image" in err_msg or "cuda" in err_msg or "no cuda gpus" in err_msg):
+                print(f"⚠️ GPU indisponível ({e}). Usando CPU (inferência mais lenta).")
+                DEVICE = "cpu"
+                use_half = False
+                model = DeepFakeClassifier(encoder="tf_efficientnet_b7_ns").to("cpu")
+                ckpt = torch.load(fpath, map_location="cpu", weights_only=True)
+                state = ckpt.get("state_dict", ckpt)
+                model.load_state_dict({re.sub(r"^module\.", "", k): v for k, v in state.items()}, strict=True)
+                model.eval()
+                models.append(model)
+                del ckpt
+            else:
+                raise
 
     if not models:
         raise RuntimeError("Nenhum modelo carregado. Verifique WEIGHTS_DIR e MODEL_FILES.")
@@ -65,37 +106,58 @@ def load_models():
 
 def predict_video(video_path: str) -> float:
     """Retorna probabilidade de fake (0-1) para um vídeo."""
-    if DFDCDIR not in sys.path:
-        sys.path.insert(0, DFDCDIR)
-    from kernel_utils import (
-        VideoReader,
-        FaceExtractor,
-        confident_strategy,
-        predict_on_video,
-    )
+    # Quando rodamos em CPU, o dfdc_deepfake_challenge ainda chama .cuda() internamente.
+    # Patch para .cuda() não falhar ("No CUDA GPUs are available").
+    _patched = False
+    if DEVICE == "cpu":
+        _orig_cuda_available = torch.cuda.is_available
+        _orig_tensor_cuda = torch.Tensor.cuda
+        _orig_module_cuda = torch.nn.Module.cuda
+        torch.cuda.is_available = lambda: False
+        def _tensor_cuda_noop(self, device=None):
+            return self.to("cpu")
+        def _module_cuda_noop(self, device=None):
+            return self.to("cpu")
+        torch.Tensor.cuda = _tensor_cuda_noop
+        torch.nn.Module.cuda = _module_cuda_noop
+        _patched = True
+    try:
+        if DFDCDIR not in sys.path:
+            sys.path.insert(0, DFDCDIR)
+        from kernel_utils import (
+            VideoReader,
+            FaceExtractor,
+            confident_strategy,
+            predict_on_video,
+        )
 
-    frames_per_video = 32
-    video_reader = VideoReader()
-    video_read_fn = lambda x: video_reader.read_frames(x, num_frames=frames_per_video)
-    face_extractor = FaceExtractor(video_read_fn)
-    input_size = 380
+        frames_per_video = 32
+        video_reader = VideoReader()
+        video_read_fn = lambda x: video_reader.read_frames(x, num_frames=frames_per_video)
+        face_extractor = FaceExtractor(video_read_fn)
+        input_size = 380
 
-    pred = predict_on_video(
-        face_extractor=face_extractor,
-        video_path=video_path,
-        batch_size=frames_per_video,
-        input_size=input_size,
-        models=models,
-        strategy=confident_strategy,
-        apply_compression=False,
-    )
-    return float(pred)
+        pred = predict_on_video(
+            face_extractor=face_extractor,
+            video_path=video_path,
+            batch_size=frames_per_video,
+            input_size=input_size,
+            models=models,
+            strategy=confident_strategy,
+            apply_compression=False,
+        )
+        return float(pred)
+    finally:
+        if _patched:
+            torch.cuda.is_available = _orig_cuda_available
+            torch.Tensor.cuda = _orig_tensor_cuda
+            torch.nn.Module.cuda = _orig_module_cuda
 
 
 @app.on_event("startup")
 def startup():
     load_models()
-    print("✅ RealityScan Deepfake API pronta. Modelos EfficientNet B7 carregados.")
+    print(f"✅ RealityScan Deepfake API pronta. Modelos EfficientNet B7 carregados ({DEVICE.upper()}).")
 
 
 @app.get("/health")
