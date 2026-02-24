@@ -1,0 +1,33 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /free_usage/{doc} { allow read, write: if false; }
+    match /free_usage_ip/{doc} { allow read, write: if false; }
+    match /free_usage_global/{doc} { allow read, write: if false; }
+    match /free_usage_reasoning/{doc} { allow read, write: if false; }
+    match /free_usage_media/{doc} { allow read, write: if false; }
+    match /admin_ai_scans/{doc} {
+      allow read, write: if request.auth != null;
+    }
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    match /users/{userId}/analyses/{doc} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    match /feedback/{doc} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+    }
+    match /system_logs/{doc} {
+      allow read, write: if request.auth != null;
+    }
+    match /system/{doc} {
+      allow read, write: if request.auth != null;
+    }
+    // 🔒 API keys - NEGAR TUDO. Apenas Firebase Admin SDK (servidor) pode ler.
+    match /config/{doc} {
+      allow read, write: if false;
+    }
+  }
+}

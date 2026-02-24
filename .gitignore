@@ -1,0 +1,25 @@
+# Chaves e segredos - NUNCA commitar
+.env
+.env.local
+.env.*.local
+firebase-key.json
+*.pem
+
+# Dependências
+node_modules/
+
+# Build
+dist/
+build/
+
+# Logs e cache
+logs/
+*.log
+npm-debug.log*
+.cache/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo

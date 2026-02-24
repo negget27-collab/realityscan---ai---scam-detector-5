@@ -1,0 +1,9 @@
+{
+  "name": "RealityScan - AI & Scam Detector 5",
+  "description": "A high-performance startup-ready application designed to identify AI-generated videos, photos, and voice clones. Features advanced forensic analysis, scam detection, and probability scoring.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "display-capture"
+  ]
+}
