@@ -24,7 +24,11 @@ cd -
 
 echo "🐍 Instalando dependências Python..."
 pip install -q fastapi uvicorn python-multipart
-pip install -q -r "$DFDC_DIR/requirements.txt" 2>/dev/null || pip install torch torchvision opencv-python-headless numpy Pillow albumentations facenet-pytorch timm pandas
+# NumPy <2: imgaug (usado por albumentations) precisa de np.sctypes (removido no NumPy 2.0)
+pip install -q "numpy<2"
+# dfdc_deepfake_challenge usa import antigo: albumentations.augmentations.functional (removido em albumentations 1.x)
+pip install -q "albumentations==0.5.2"
+pip install -q -r "$DFDC_DIR/requirements.txt" 2>/dev/null || pip install -q torch torchvision opencv-python-headless Pillow facenet-pytorch timm pandas
 
 echo "📦 Instalando voz (wav2vec2) e lip-sync..."
 pip install -q transformers torchaudio librosa soundfile scenedetect scipy 2>/dev/null || true

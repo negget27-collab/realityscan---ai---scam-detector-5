@@ -16,7 +16,7 @@
 
 import { analyzeMedia, reconPerson } from './services/geminiService';
 
-import React, { useState, useRef, useEffect, useMemo, Suspense, lazy } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback, Suspense, lazy } from 'react';
 
 import { AnalysisResult, AppState, PlanConfig } from './types';
 import { ScannerOverlay } from './components/ScannerOverlay';
@@ -53,7 +53,7 @@ import { ScrollToTopButton } from './components/ScrollToTopButton';
 import { healthService } from './services/SystemHealthService';
 
 
-import { auth, db, saveUserData, incrementAnalysisCount, saveAnalysisResult, logout, deleteUserAccount, handleAuthRedirectResult } from './services/firebase';
+import { auth, db, saveUserData, incrementAnalysisCount, saveAnalysisResult, logout, deleteUserAccount, handleAuthRedirectResult, ensureAuthPersistence } from './services/firebase';
 import { getOrCreateDeviceId } from './services/deviceId';
 import { captureReferralFromUrl, clearReferralCode } from './services/referralService';
 import { runSentryScan, runSentryScanFromImage, normalizeSentryError } from './services/SentryService';
@@ -187,6 +187,8 @@ const App: React.FC = () => {
   const sentryScanTriggerRef = useRef<(videoLink?: string) => void>(() => {});
   const hasSentrySetupOnceRef = useRef(false);
   const consumeCreditRef = useRef<() => Promise<boolean>>(async () => false);
+  /** Ao voltar do MP/PayPal: evita que listener Firestore sobrescreva plano com cache antigo por 15s */
+  const paymentReturnUntilRef = useRef<number>(0);
   const [showSentryMobileCapture, setShowSentryMobileCapture] = useState(false);
   const isSentryMobileFlow = useSentryMobileFlow();
   const userRef = useRef<User | null>(null);
@@ -218,10 +220,11 @@ const App: React.FC = () => {
     const status = params.get("status");
     const isReturnFromMercadoPago = status === "approved" || params.has("collection_id") || params.has("payment_id") || params.has("preference_id");
 
-    if (status === "approved") {
+    if (status === "approved" || params.has("collection_id") || params.has("payment_id") || params.has("preference_id")) {
       clearReferralCode();
       window.history.replaceState({}, document.title, "/");
       sessionStorage.setItem("rs_pending_payment_sync", "1");
+      paymentReturnUntilRef.current = Date.now() + 20000; // 20s: não sobrescrever plano com cache antigo
       try { sessionStorage.setItem("rs_splash_seen", "1"); localStorage.setItem("rs_app_mode", "user"); } catch (_) {}
       setTheme("light");
       setShowSplash(false);
@@ -232,8 +235,16 @@ const App: React.FC = () => {
 
     let unsubscribe: (() => void) | undefined;
     const initAuth = async () => {
-      // Não processar redirect OAuth quando voltando do Mercado Pago – evita sobrescrever
-      // o usuário atual com resultado pendente de login anterior (Google, etc.)
+      // Persistência DEVE ser configurada e awaited antes de qualquer auth (evita deslogar ao atualizar)
+      try {
+        await ensureAuthPersistence();
+      } catch (_) {}
+      // Aguarda Firebase restaurar sessão do IndexedDB antes de considerar auth pronto
+      try {
+        if (typeof auth.authStateReady === 'function') {
+          await auth.authStateReady();
+        }
+      } catch (_) {}
       if (!isReturnFromMercadoPago) {
         try {
           await handleAuthRedirectResult();
@@ -245,14 +256,19 @@ const App: React.FC = () => {
       setUser(firebaseUser);
       if (!firebaseUser) {
         setIsAuthLoading(false);
-      } else if (sessionStorage.getItem("rs_pending_payment_sync")) {
+      } else {
+        setIsAuthLoading(false);
+        if (sessionStorage.getItem("rs_pending_payment_sync")) {
         sessionStorage.removeItem("rs_pending_payment_sync");
         const docRef = doc(db, "users", firebaseUser.uid);
         const applyUserStats = (d: Record<string, unknown>) => {
+          const plan = (d.planId as string) || (d.plan as string) || "community";
+          const inPaymentWindow = Date.now() < paymentReturnUntilRef.current;
+          if (inPaymentWindow && plan === "community") return;
           setState(prev => ({
             ...prev,
             userStats: {
-              plan: (d.planId as string) || (d.plan as string) || "community",
+              plan,
               credits: (d.credits as number) ?? 0,
               monthlyCredits: (d.monthlyCredits as number) ?? 0,
               subscriptionActive: !!(d.subscriptionActive),
@@ -278,6 +294,9 @@ const App: React.FC = () => {
         setTimeout(syncPlan, 500);
         setTimeout(syncPlan, 1500);
         setTimeout(syncPlan, 3500);
+        setTimeout(syncPlan, 6000);
+        setTimeout(syncPlan, 10000);
+        }
       }
     });
     };
@@ -396,20 +415,29 @@ useEffect(() => {
       setUserName(data.displayName || user?.displayName || user?.email);
       if (data.language) setUserLang(data.language as 'PT' | 'EN' | 'ES', { persist: true });
 
-      setState(prev => ({
-        ...prev,
-        userStats: {
-          plan: data.planId || data.plan || 'community',
-          credits: data.credits || 0,
-          monthlyCredits: data.monthlyCredits || 0,
-          subscriptionActive: data.subscriptionActive || false,
-          subscriptionId: data.subscriptionId,
-          planExpiresAt: data.planExpiresAt,
-          referralCode: data.referralCode || null,
-          referralCount: data.referralCount || 0,
-          referralCreditsEarned: data.referralCreditsEarned || 0
+      const incomingPlan = data.planId || data.plan || 'community';
+      const inPaymentReturnWindow = Date.now() < paymentReturnUntilRef.current;
+      const currentIsPaid = (p: string) => p && p !== 'community' && (p.startsWith('advanced') || p.startsWith('business'));
+
+      setState(prev => {
+        if (inPaymentReturnWindow && incomingPlan === 'community' && prev.userStats && currentIsPaid(prev.userStats.plan || '')) {
+          return { ...prev, userStats: { ...prev.userStats } };
         }
-      }));
+        return {
+          ...prev,
+          userStats: {
+            plan: incomingPlan,
+            credits: data.credits || 0,
+            monthlyCredits: data.monthlyCredits || 0,
+            subscriptionActive: data.subscriptionActive || false,
+            subscriptionId: data.subscriptionId,
+            planExpiresAt: data.planExpiresAt,
+            referralCode: data.referralCode || null,
+            referralCount: data.referralCount || 0,
+            referralCreditsEarned: data.referralCreditsEarned || 0
+          }
+        };
+      });
     };
 
     subscribe();
@@ -419,6 +447,24 @@ useEffect(() => {
       if (unsubscribeFirestore) unsubscribeFirestore();
     };
   }, [user?.uid]);
+
+  /** Ao voltar do MP/PayPal: força sync do plano/créditos quando EXTERNAL_SUCCESS está visível e user carregou */
+  useEffect(() => {
+    if (view !== 'EXTERNAL_SUCCESS' || !user?.uid) return;
+    const sync = () => {
+      handleSyncAccount();
+    };
+    sync();
+    const t1 = setTimeout(sync, 2000);
+    const t2 = setTimeout(sync, 5000);
+    const t3 = setTimeout(sync, 10000);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+    };
+  }, [view, user?.uid]);
+
   const consumeCredit = async (): Promise<boolean> => {
     const deviceId = getOrCreateDeviceId();
 
@@ -728,12 +774,27 @@ results.push(result);
       setLastSentryError(null);
       setSentryHistory([]);
       showNotification("Monitor ativo. Pause o vídeo/foto no feed e clique em Nova análise.", "success");
-      stream.getVideoTracks()[0].onended = () => { setIsSentryActive(false); setLastSentryResult(null); setSentryPipWindow(null); };
+      stream.getVideoTracks()[0].onended = () => fullSentryDeactivate();
     } catch (err: any) {
       console.error("Sentry Activation Error:", err);
       showNotification("Compartilhamento cancelado. Selecione a aba da rede social no diálogo do navegador.", "warning");
     }
   };
+
+  /** Desativa Sentry por completo (estado + stream + PiP). Evita botão travar ao fechar o Mini HUD. */
+  const fullSentryDeactivate = useCallback(() => {
+    setIsSentryActive(false);
+    setLastSentryResult(null);
+    setLastSentryError(null);
+    setSentryPipWindow((prev) => {
+      if (prev) try { prev.close(); } catch (_) {}
+      return null;
+    });
+    if (sentryStreamRef.current) {
+      sentryStreamRef.current.getTracks().forEach((t) => t.stop());
+      sentryStreamRef.current = null;
+    }
+  }, []);
 
   /** Abre PiP primeiro (gesto do usuário), depois getDisplayMedia. Usado no fluxo do modal em 2 etapas. */
   const handleConfirmAndStartWithPip = async () => {
@@ -753,7 +814,7 @@ results.push(result);
       dw.document.body.style.backgroundColor = '#030712';
       dw.document.body.style.margin = '0';
       dw.document.body.className = 'bg-[#030712] text-white overflow-hidden h-full';
-      dw.addEventListener('pagehide', () => setSentryPipWindow(null));
+      dw.addEventListener('pagehide', () => fullSentryDeactivate());
       setSentryPipWindow(dw);
       setIsSentryActive(true);
       setLastSentryResult(null);
@@ -767,11 +828,10 @@ results.push(result);
         await sentryVideoRef.current.play();
       }
       showNotification("Monitor ativo em janela flutuante. Pause o vídeo/foto no feed e clique em Nova análise.", "success");
-      stream.getVideoTracks()[0].onended = () => { setIsSentryActive(false); setLastSentryResult(null); setSentryPipWindow(null); };
+      stream.getVideoTracks()[0].onended = () => fullSentryDeactivate();
     } catch (err: any) {
       console.error("Sentry PiP+Activation Error:", err);
-      setSentryPipWindow(null);
-      setIsSentryActive(false);
+      fullSentryDeactivate();
       showNotification(err?.name === 'NotAllowedError' ? "Compartilhamento cancelado. Selecione a aba da rede social no diálogo." : "Falha ao ativar. Use Chrome/Edge 116+ para janela flutuante.", "warning");
     }
   };
@@ -798,13 +858,7 @@ results.push(result);
         setShowSocialNetworkPicker(true);
       }
     } else {
-      setIsSentryActive(false);
-      setLastSentryResult(null);
-      setLastSentryError(null);
-      if (sentryStreamRef.current) {
-        sentryStreamRef.current.getTracks().forEach(t => t.stop());
-        sentryStreamRef.current = null;
-      }
+      fullSentryDeactivate();
     }
   };
 
@@ -880,8 +934,8 @@ results.push(result);
     if (!user) return;
     console.log("Manual Sync Triggered for:", user.uid);
     try {
-      const { getDoc, doc } = await import("firebase/firestore");
-      const docSnap = await getDoc(doc(db, "users", user.uid));
+      const { getDoc, getDocFromServer, doc } = await import("firebase/firestore");
+      const docSnap = await getDocFromServer(doc(db, "users", user.uid)).catch(() => getDoc(doc(db, "users", user.uid)));
       if (docSnap.exists()) {
         const data = docSnap.data();
         console.log("Manual Sync Data:", data);
@@ -1091,7 +1145,7 @@ results.push(result);
       </header>
 
       <div className="pt-20 md:pt-24 px-4 pb-8">
-        <SentryMiniHUD isActive={isSentryActive} onDeactivate={() => setIsSentryActive(false)} lastResult={lastSentryResult} lastError={lastSentryError} isScanning={isSentryScanning} onNotification={showNotification} sentryHistory={sentryHistory} onAnalyzeAgain={isSentryMobileFlow ? () => setShowSentryMobileCapture(true) : (videoLink) => sentryScanTriggerRef.current?.(videoLink)} pipSupported={pipSupported()} pipWindow={sentryPipWindow} setPipWindow={setSentryPipWindow} />
+        <SentryMiniHUD isActive={isSentryActive} onDeactivate={fullSentryDeactivate} lastResult={lastSentryResult} lastError={lastSentryError} isScanning={isSentryScanning} onNotification={showNotification} sentryHistory={sentryHistory} onAnalyzeAgain={isSentryMobileFlow ? () => setShowSentryMobileCapture(true) : (videoLink) => sentryScanTriggerRef.current?.(videoLink)} pipSupported={pipSupported()} pipWindow={sentryPipWindow} setPipWindow={setSentryPipWindow} />
         {showSentryMobileCapture && (
           <SentryMobileCaptureModal
             isOpen={showSentryMobileCapture}
@@ -1176,7 +1230,7 @@ results.push(result);
         
         {showLanguageModal && (
           <div
-            className="fixed inset-0 z-[700] flex items-center justify-center p-4"
+            className="fixed inset-0 z-[700] flex items-center justify-center p-4 bg-transparent"
             onClick={() => setShowLanguageModal(false)}
             role="dialog"
             aria-modal="true"
@@ -1299,7 +1353,7 @@ results.push(result);
            view === 'CHECKOUT' && selectedPlan ? <CheckoutPage plan={selectedPlan} userId={user?.uid || 'guest'} onBack={() => setView(selectedPlan?.id?.startsWith?.('api_') ? 'API_PLANS' : 'INFO')} onSuccess={() => setView('SUCCESS')} /> :
            view === 'SUCCESS' || view === 'EXTERNAL_SUCCESS' ? <PaymentSuccess plan={selectedPlan || plansWithPrices[1]} onFinish={handleFinishSuccess} /> :
            view === 'LOGIN' ? <LoginPage onLogin={() => { setView('HOME'); setLoginFromEntryChoice(false); }} onBack={() => { if (loginFromEntryChoice) { setShowEntryChoice(true); setAppMode(null); setLoginFromEntryChoice(false); } else { setView('PROFILE'); } }} onGuestLogin={() => { setView('HOME'); setLoginFromEntryChoice(false); }} /> :
-           view === 'PROFILE' ? <ProfilePage onBack={() => setView('HOME')} onOpenLoginPage={() => setView('LOGIN')} profilePic={profilePic} userName={userName} userEmail={user?.email || null} purchasedPlanId={effectivePlanId} credits={state.userStats?.credits} monthlyCredits={state.userStats?.monthlyCredits} plans={plansWithPrices} onUpgrade={() => setView('INFO')} onLogout={async () => { healthService.clearPendingAlerts(); await logout(); setView('LOGIN'); }} onDeleteAccount={async () => { await deleteUserAccount(); setView('LOGIN'); }} isGuest={isGuest} profileSubView={profileSubView} setProfileSubView={setProfileSubView} onSync={handleSyncAccount} onAdminClick={() => setView('ADMIN')} userId={user?.uid ?? null} onGoToDatabase={() => setView('BUSINESS_PANEL')} onGoToApiDev={() => setView('DEV_API')} onThemeToggle={toggleTheme} theme={theme} referralCode={state.userStats?.referralCode} referralCount={state.userStats?.referralCount} referralCreditsEarned={state.userStats?.referralCreditsEarned} onViewAnalysisFromHistory={(result) => { setProfileSubView('MAIN'); setPreview(result.mediaUrl ? { url: result.mediaUrl, type: (result.mediaType || 'IMAGE') } : null); setState(prev => ({ ...prev, currentResult: result })); setView('HOME'); }} /> :
+           view === 'PROFILE' ? <ProfilePage onBack={() => setView('HOME')} profilePic={profilePic} userName={userName} userEmail={user?.email || null} purchasedPlanId={effectivePlanId} credits={state.userStats?.credits} monthlyCredits={state.userStats?.monthlyCredits} plans={plansWithPrices} onUpgrade={() => setView('INFO')} onLogout={async () => { healthService.clearPendingAlerts(); await logout(); setShowEntryChoice(true); setAppMode(null); setView('HOME'); }} onDeleteAccount={async () => { await deleteUserAccount(); setShowEntryChoice(true); setAppMode(null); setView('HOME'); }} isGuest={isGuest} profileSubView={profileSubView} setProfileSubView={setProfileSubView} onSync={handleSyncAccount} onAdminClick={() => setView('ADMIN')} userId={user?.uid ?? null} onGoToDatabase={() => setView('BUSINESS_PANEL')} onGoToApiDev={() => setView('DEV_API')} onThemeToggle={toggleTheme} theme={theme} referralCode={state.userStats?.referralCode} referralCount={state.userStats?.referralCount} referralCreditsEarned={state.userStats?.referralCreditsEarned} onViewAnalysisFromHistory={(result) => { setProfileSubView('MAIN'); setPreview(result.mediaUrl ? { url: result.mediaUrl, type: (result.mediaType || 'IMAGE') } : null); setState(prev => ({ ...prev, currentResult: result })); setView('HOME'); }} /> :
            view === 'BUSINESS_PANEL' ? <BusinessAdminPanel onBack={() => setView('HOME')} onGoToScan={() => setView('HOME')} /> :
            view === 'DEV_API' ? <DevApiPanel onBack={() => setView(user ? 'PROFILE' : 'HOME')} onUpgrade={() => { setApiPlansFrom('DEV_API'); setView('API_PLANS'); }} onLogin={() => setView('LOGIN')} /> :
            view === 'API_PLANS' ? <ApiPlansPage onSelectPlan={(plan) => { setSelectedPlan(plan); setView('CHECKOUT'); }} /> :
@@ -1326,17 +1380,17 @@ results.push(result);
                       <div className="flex items-center space-x-2">
                         <div className={`px-3 py-2 rounded-xl flex items-center space-x-2 ${theme === 'light' ? 'bg-purple-500/10 border border-purple-500/30' : 'bg-purple-500/10 border border-purple-500/20'}`}>
                           <div className="w-1 h-1 rounded-full bg-purple-500 animate-pulse"></div>
-                          <span className={`text-[9px] font-black uppercase tracking-widest ${theme === 'light' ? 'text-purple-600' : 'text-purple-400'}`}>Créditos: {state.userStats?.credits ?? 999}</span>
+                          <span className={`text-[9px] font-black uppercase tracking-widest ${theme === 'light' ? 'text-purple-600' : 'text-purple-400'}`}>{t.credits}: {state.userStats?.credits ?? 999}</span>
                         </div>
                         <div className={`px-3 py-2 rounded-xl flex items-center space-x-2 ${theme === 'light' ? 'bg-blue-500/10 border border-blue-500/30' : 'bg-blue-500/10 border border-blue-500/20'}`}>
                           <div className="w-1 h-1 rounded-full bg-blue-500 animate-pulse"></div>
-                          <span className={`text-[9px] font-black uppercase tracking-widest ${theme === 'light' ? 'text-blue-600' : 'text-blue-400'}`}>Mensal: {state.userStats?.monthlyCredits ?? 500}</span>
+                          <span className={`text-[9px] font-black uppercase tracking-widest ${theme === 'light' ? 'text-blue-600' : 'text-blue-400'}`}>{t.monthly}: {state.userStats?.monthlyCredits ?? 500}</span>
                         </div>
                         
                         <button 
                           onClick={handleSyncAccount}
                           className={`p-2 rounded-xl transition-all group ${theme === 'light' ? 'bg-gray-200/80 border border-gray-300 hover:bg-gray-300' : 'bg-white/5 border border-white/10 hover:bg-white/10'}`}
-                          title="Sincronizar Plano"
+                          title={t.syncPlanTitle}
                         >
                           <svg className={`w-3 h-3 group-hover:text-blue-400 ${theme === 'light' ? 'text-gray-600' : 'text-gray-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -1424,7 +1478,7 @@ results.push(result);
 
 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className={`p-6 rounded-[2rem] space-y-3 flex flex-col justify-between text-center relative overflow-hidden ${isSentryActive ? 'bg-red-950/30 border-2 border-red-500/40' : theme === 'light' ? 'bg-white/90 border-2 border-blue-400/50 shadow-lg' : 'bg-gradient-to-br from-blue-500/15 to-indigo-500/10 border-2 border-blue-500/40 shadow-[0_0_40px_rgba(59,130,246,0.15)]'}`}>
                     <div className="flex flex-col items-center">
                       <div className="flex items-center gap-2 justify-center mb-1">
@@ -1461,8 +1515,8 @@ results.push(result);
                   </div>
                 </div>
 
-                {/* Botão Upgrade - abaixo dos três modais */}
-                <div className="mt-10 flex justify-center">
+                {/* Botão Upgrade */}
+                <div className="mt-80 flex justify-center pb-16">
                   <button
                     onClick={() => setView('INFO')}
                     className={`group relative px-12 py-4 rounded-2xl text-sm font-black uppercase tracking-[0.3em] overflow-hidden transition-all duration-300 hover:scale-105 active:scale-95 ${
@@ -1477,45 +1531,6 @@ results.push(result);
                     </span>
                     <span className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/25 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
                   </button>
-                </div>
-
-                {/* Mini-cards de créditos - abaixo dos três botões FeedScan, FaceScan, VoiceScan (visível para todos: visitantes, convidados e logados) */}
-                <div className="mt-8 flex flex-col items-center gap-3 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                  <p className={`text-[8px] font-black uppercase tracking-[0.2em] ${theme === 'light' ? 'text-purple-600' : 'text-purple-400'}`}>{t.creditsSection}</p>
-                  <div className="flex flex-wrap justify-center gap-2">
-                    {[
-                      { amount: 5, id: 'credits_5' },
-                      { amount: 20, id: 'credits_20' },
-                      { amount: 50, id: 'credits_50' },
-                    ].map((pack) => (
-                      <button
-                        key={pack.id}
-                        onClick={() => {
-                          setSelectedPlan({
-                            id: pack.id,
-                            level: t.creditsSection,
-                            name: `${pack.amount} Scans`,
-                            price: getCreditsPrice(userLang as 'PT' | 'EN' | 'ES', pack.id),
-                            description: '',
-                            features: [],
-                            cta: t.buyNow,
-                            colorClass: 'bg-purple-600',
-                            type: 'credits',
-                            amount: pack.amount
-                          });
-                          setView('CHECKOUT');
-                        }}
-                        className={`credit-card-animate p-2.5 rounded-xl backdrop-blur-sm transition-all duration-300 text-left group hover:scale-[1.03] active:scale-95 min-w-[90px] ${theme === 'light' ? 'bg-white border border-gray-200 hover:border-purple-400 hover:shadow-lg shadow-md' : 'bg-[#0b1120]/95 border border-white/10 hover:border-purple-500/50 hover:shadow-[0_0_16px_rgba(147,51,234,0.3)]'}`}
-                      >
-                        <div className={`text-sm font-black transition-colors ${theme === 'light' ? 'text-gray-900 group-hover:text-purple-600' : 'text-white group-hover:text-purple-300'}`}>{pack.amount}</div>
-                        <div className={`text-[5px] uppercase ${theme === 'light' ? 'text-gray-500' : 'text-gray-500'}`}>Scans</div>
-                        <div className={`text-[8px] font-bold mt-0.5 transition-colors ${theme === 'light' ? 'text-purple-600 group-hover:text-purple-700' : 'text-purple-400 group-hover:text-purple-300'}`}>{getCreditsPrice(userLang as 'PT' | 'EN' | 'ES', pack.id)}</div>
-                        <div className="mt-1.5 py-1 rounded-md bg-gradient-to-r from-purple-600 to-purple-500 text-[5px] font-black uppercase tracking-wider text-white text-center group-hover:brightness-110 transition-all duration-300">
-                          {t.buyNow}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
                 </div>
 
              </div>
