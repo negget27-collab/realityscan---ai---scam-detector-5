@@ -118,8 +118,11 @@ let FRONTEND_URL = process.env.APP_URL || process.env.FRONTEND_URL || "http://lo
 
 console.log("🚀 BACKEND REALITYSCAN INICIADO");
 
-// Verifica se a Deepfake API está acessível (evita 404 em runtime)
+// Sistema GPU/EfficientNet: ativo quando DEEPFAKE_API_URL está definida (RunPod ou local)
 const deepfakeBase = process.env.DEEPFAKE_API_URL || "";
+if (!deepfakeBase) {
+  console.log("ℹ️ EfficientNet (GPU): aguardando ativação. Última etapa manual: configure DEEPFAKE_API_URL no .env.local (ver DEEPFAKE_SETUP.md).");
+}
 if (deepfakeBase) {
   const healthUrl = deepfakeBase.replace(/\/$/, "") + "/health";
   const ac = new AbortController();
