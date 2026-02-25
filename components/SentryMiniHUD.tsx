@@ -117,7 +117,16 @@ export const SentryMiniHUD: React.FC<SentryMiniHUDProps> = ({
       pipWindow.close();
       setPipWindow(null);
     }
-  }, [pipWindow]);
+  }, [pipWindow, setPipWindow]);
+
+  /** Fechar Mini HUD: fecha a janela PiP primeiro (evita botão travar) e depois desativa. */
+  const handleDeactivate = useCallback(() => {
+    if (pipWindow) {
+      pipWindow.close();
+      setPipWindow(null);
+    }
+    onDeactivate?.();
+  }, [pipWindow, setPipWindow, onDeactivate]);
 
   useEffect(() => {
     if (!isActive && pipWindow) {
@@ -149,7 +158,10 @@ export const SentryMiniHUD: React.FC<SentryMiniHUDProps> = ({
       dw.document.body.style.backgroundColor = '#030712';
       dw.document.body.style.margin = '0';
       dw.document.body.className = 'bg-[#030712] text-white overflow-hidden h-full';
-      dw.addEventListener('pagehide', () => setPipWindow(null));
+      dw.addEventListener('pagehide', () => {
+        setPipWindow(null);
+        setTimeout(() => onDeactivate?.(), 0);
+      });
       setPipWindow(dw);
     } catch (err: any) {
       console.error("PiP Failed:", err);
@@ -297,7 +309,7 @@ export const SentryMiniHUD: React.FC<SentryMiniHUDProps> = ({
               <button onClick={handleDownloadPDF} disabled={sentryHistory.length === 0 || isGeneratingPDF} title="Baixar PDF" className={`p-2 rounded-xl ${sentryHistory.length > 0 ? 'bg-white/5 hover:bg-white/10 text-gray-400 hover:text-blue-400' : 'opacity-30 cursor-not-allowed text-gray-600'}`}>
                 <Download className="w-4 h-4" />
               </button>
-              <button onClick={onDeactivate} className="p-2 bg-white/5 hover:bg-white/10 rounded-xl text-gray-400 hover:text-red-500">
+              <button onClick={handleDeactivate} className="p-2 bg-white/5 hover:bg-white/10 rounded-xl text-gray-400 hover:text-red-500">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 18L18 6" /></svg>
               </button>
             </>
@@ -320,8 +332,8 @@ export const SentryMiniHUD: React.FC<SentryMiniHUDProps> = ({
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 7h8a2 2 0 012 2v8a2 2 0 01-2 2H8a2 2 0 01-2-2V9a2 2 0 012-2z" /></svg>
                 </button>
               )}
-              <button onClick={onDeactivate} className="p-2 bg-white/5 hover:bg-white/10 rounded-xl text-gray-400 hover:text-red-500">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 18L18 6" /></svg>
+<button onClick={handleDeactivate} className="p-2 bg-white/5 hover:bg-white/10 rounded-xl text-gray-400 hover:text-red-500">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 18L18 6" /></svg>
               </button>
             </>
           )}

@@ -4,6 +4,33 @@ Este guia descreve as **etapas manuais** para ativar o detector de deepfake em v
 
 ---
 
+## ❌ Resolver erro "Deepfake API 404: Not Found"
+
+Se o backend mostrar **Deepfake API 404** ou **Deepfake API inacessível**, a URL em `DEEPFAKE_API_URL` não está a responder. Duas formas de resolver:
+
+### Opção A – API local (recomendado para desenvolvimento)
+
+1. **Subir a Deepfake API em Docker (CPU)** — na raiz do projeto:
+   ```bash
+   npm run deepfake:up
+   ```
+   Na primeira vez o build pode demorar alguns minutos (download de modelos).
+
+2. **Apontar o backend para a API local** — no `.env.local`:
+   ```env
+   DEEPFAKE_API_URL=http://localhost:8000
+   ```
+
+3. **Reiniciar o backend** (`npm run dev:full`). Deve aparecer: `✔ Deepfake API acessível em http://localhost:8000`.
+
+Para parar a API local: `npm run deepfake:down`.
+
+### Opção B – RunPod
+
+Se preferir usar RunPod: confirme que o pod está **Running**, que a API está a correr no pod (`python app.py` ou via Docker na porta 8000) e que em `.env.local` está a **URL atual** do proxy RunPod (a URL muda se o pod for reiniciado). Ver secção "Etapas manuais" abaixo.
+
+---
+
 ## Arquitetura
 
 ### Vídeo (upload direto)

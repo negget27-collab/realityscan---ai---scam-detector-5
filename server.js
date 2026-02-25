@@ -116,6 +116,37 @@ let FRONTEND_URL = process.env.APP_URL || process.env.FRONTEND_URL || "http://lo
 
 console.log("🚀 BACKEND REALITYSCAN INICIADO");
 
+// Verifica se a Deepfake API está acessível (evita 404 em runtime)
+const deepfakeBase = process.env.DEEPFAKE_API_URL || "";
+if (deepfakeBase) {
+  const healthUrl = deepfakeBase.replace(/\/$/, "") + "/health";
+  const ac = new AbortController();
+  const t = setTimeout(() => ac.abort(), 8000);
+  fetch(healthUrl, { method: "GET", signal: ac.signal })
+    .then((res) => {
+      clearTimeout(t);
+      if (res.ok) {
+        console.log("✔ Deepfake API acessível em", deepfakeBase);
+      } else {
+        console.error(
+          "❌ Deepfake API devolveu",
+          res.status,
+          "em",
+          healthUrl,
+          "\n  Para resolver: (1) Subir API local: npm run deepfake:up e no .env.local use DEEPFAKE_API_URL=http://localhost:8000  (2) Ou iniciar o pod RunPod e colocar a URL correta em DEEPFAKE_API_URL."
+        );
+      }
+    })
+    .catch((err) => {
+      clearTimeout(t);
+      console.error(
+        "❌ Deepfake API inacessível:",
+        err.message || err,
+        "\n  Para resolver: (1) Subir API local: npm run deepfake:up e no .env.local use DEEPFAKE_API_URL=http://localhost:8000  (2) Ou iniciar o pod RunPod e colocar a URL correta em DEEPFAKE_API_URL."
+      );
+    });
+}
+
 //////////////////////////////
 // FIREBASE ADMIN
 //////////////////////////////
@@ -1591,6 +1622,8 @@ async function getReferrerIdByCode(referralCode) {
 async function creditReferrer(referrerId, referredUserId, planId, purchaseType) {
   if (!referrerId || !referredUserId || referrerId === referredUserId || !db) return;
   try {
+    const existing = await db.collection("referrals").where("referrerId", "==", referrerId).where("referredUserId", "==", referredUserId).limit(1).get();
+    if (!existing.empty) return;
     const userRef = db.collection("users").doc(referrerId);
     await userRef.set({
       credits: admin.firestore.FieldValue.increment(REFERRAL_REWARD_CREDITS),
@@ -1894,8 +1927,9 @@ app.get("/api/paypal-return", async (req, res) => {
             await savePurchaseRecord(userId, planId, "credits", creditAmount);
           } else {
             const monthlyCredits = planId.startsWith("business") ? 200 : 80;
-            await userRef.set({ premium: true, planId, monthlyCredits, subscriptionActive: true, status: "active", updatedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+            await userRef.set({ premium: true, plan: planId, planId, monthlyCredits, subscriptionActive: true, status: "active", updatedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
             await savePurchaseRecord(userId, planId, "subscription");
+            console.log(`👑 [PayPal Return] Assinatura: ${planId} para ${userId} (${monthlyCredits} créditos/mês)`);
           }
         }
         const pendingSnap = await db.collection("pending_referrals").doc(token).get();
@@ -1919,7 +1953,7 @@ app.get("/api/paypal-return", async (req, res) => {
 // Fallback: atualiza o plano aqui se o webhook não rodou (ex: ngrok estava offline)
 app.get("/pagamento-aprovado", async (req, res) => {
   const { collection_id, collection_status, external_reference, preference_id } = req.query;
-  const frontendUrl = MP_BASE || FRONTEND_URL || BASE_URL || `http://localhost:${process.env.PORT || 3001}`;
+  const frontendUrl = FRONTEND_URL || MP_BASE || BASE_URL || `http://localhost:${process.env.PORT || 3001}`;
 
   if (collection_status === "approved" && external_reference && db) {
     const parts = String(external_reference).split("::");
@@ -1964,6 +1998,7 @@ app.get("/pagamento-aprovado", async (req, res) => {
           const monthlyCredits = planId.startsWith("business") ? 200 : 80;
           await userRef.set({
             premium: true,
+            plan: planId,
             planId,
             monthlyCredits,
             subscriptionActive: true,

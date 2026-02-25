@@ -126,10 +126,20 @@ export const LoginPage: React.FC<LoginPageProps> = ({
   }
 
   if (mode === 'RESET') {
-    return (
-      <div className="login-bg">
-        <div className="login-box">
-          <h1>Redefinir Senha</h1>
+  return (
+    <div className="login-bg relative">
+      {onBack && (
+        <button
+          type="button"
+          onClick={onBack}
+          className="absolute top-4 left-4 z-10 px-4 py-2 rounded-lg border border-gray-300 bg-white text-gray-700 hover:text-blue-600 hover:border-blue-400 font-bold text-xs uppercase tracking-widest transition-colors"
+          aria-label="Voltar"
+        >
+          Voltar
+        </button>
+      )}
+      <div className="login-box">
+        <h1>Redefinir Senha</h1>
           <p className="sub">RealityScan Defense Protocol</p>
 
           {error && <div className="error-msg">{error}</div>}
@@ -160,18 +170,23 @@ export const LoginPage: React.FC<LoginPageProps> = ({
             Voltar ao login
           </button>
 
-          {onBack && (
-            <button type="button" className="back-link" onClick={onBack}>
-              Voltar ao perfil
-            </button>
-          )}
         </div>
       </div>
     );
   }
 
   return (
-    <div className="login-bg">
+    <div className="login-bg relative">
+      {onBack && (
+        <button
+          type="button"
+          onClick={onBack}
+          className="absolute top-4 left-4 z-10 px-4 py-2 rounded-lg border border-gray-300 bg-white text-gray-700 hover:text-blue-600 hover:border-blue-400 font-bold text-xs uppercase tracking-widest transition-colors"
+          aria-label="Voltar"
+        >
+          Voltar
+        </button>
+      )}
       <div className="login-box">
         <h1>{mode === 'LOGIN' ? 'ACESSO RESTRITO' : 'REGISTRO DE AGENTE'}</h1>
         <p className="sub">RealityScan Defense Protocol</p>
@@ -309,12 +324,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({
         >
           {mode === 'LOGIN' ? 'Não possui acesso? Cadastre novo agente' : 'Já possui credenciais? Voltar ao login'}
         </button>
-
-        {onBack && (
-          <button type="button" className="back-link" onClick={onBack}>
-            Voltar ao perfil
-          </button>
-        )}
 
       </div>
 
