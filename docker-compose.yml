@@ -1,0 +1,20 @@
+# Deepfake API local (CPU) — resolve 404 quando RunPod não está acessível
+# Uso: docker compose up -d deepfake-api
+# Depois: DEEPFAKE_API_URL=http://localhost:8000 no .env.local
+services:
+  deepfake-api:
+    build:
+      context: ./deepfake-api
+      dockerfile: Dockerfile.cpu
+    ports:
+      - "8000:8000"
+    environment:
+      - FORCE_CPU=1
+      - WEIGHTS_DIR=/app/weights
+      - DFDCDIR=/app/dfdc_deepfake_challenge
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:8000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 90s

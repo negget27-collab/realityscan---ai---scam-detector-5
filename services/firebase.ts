@@ -15,8 +15,9 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-// Garante persistência no localStorage para manter sessão após redirect (ex: retorno do Mercado Pago)
-setPersistence(auth, browserLocalPersistence).catch(() => {});
+
+/** Garante persistência no localStorage - deve ser awaited antes de qualquer operação de auth (evita deslogar ao atualizar). */
+export const ensureAuthPersistence = () => setPersistence(auth, browserLocalPersistence);
 
 /**
  * FIX: RPC 'Listen' stream transport errored

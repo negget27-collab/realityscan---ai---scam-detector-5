@@ -1,0 +1,33 @@
+# RealityScan Deepfake API - CPU only (local / dev sem GPU)
+FROM python:3.11-slim
+
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git wget libgl1-mesa-glx libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Clone dfdc_deepfake_challenge
+RUN git clone --depth 1 https://github.com/selimsef/dfdc_deepfake_challenge.git /app/dfdc_deepfake_challenge
+
+# Pesos (1 modelo)
+RUN mkdir -p /app/weights && cd /app/weights && \
+    wget -q -O final_111_DeepFakeClassifier_tf_efficientnet_b7_ns_0_36 \
+    https://github.com/selimsef/dfdc_deepfake_challenge/releases/download/0.0.1/final_111_DeepFakeClassifier_tf_efficientnet_b7_ns_0_36
+
+# PyTorch CPU only (menor e funciona em qualquer máquina)
+RUN pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cpu
+
+# Resto das deps
+RUN pip install --no-cache-dir fastapi uvicorn python-multipart \
+    opencv-python-headless numpy Pillow albumentations facenet-pytorch timm pandas
+
+ENV DFDCDIR=/app/dfdc_deepfake_challenge
+ENV WEIGHTS_DIR=/app/weights
+ENV PYTHONPATH=/app/dfdc_deepfake_challenge
+ENV FORCE_CPU=1
+
+COPY app.py .
+EXPOSE 8000
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]

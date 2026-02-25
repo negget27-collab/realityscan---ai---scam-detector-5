@@ -55,11 +55,12 @@ export const ForensicReport: React.FC<ForensicReportProps> = ({ result, onReset,
       };
       const addSpace = (n = 1) => { y += lineH * n; };
 
-      addText('RELATÓRIO FORENSE REALITYSCAN', 16, true);
+      addText(t.reportForensicTitle, 16, true);
       addSpace(2);
-      addText(`Protocolo: ${result.id || 'N/A'} | Data: ${new Date().toLocaleString('pt-BR')}`, 9);
+      const locale = userLang === 'EN' ? 'en-US' : userLang === 'ES' ? 'es-ES' : 'pt-BR';
+      addText(`${t.protocol}: ${result.id || 'N/A'} | ${t.apiDate}: ${new Date().toLocaleString(locale)}`, 9);
       addSpace(2);
-      addText(`Veredito: ${isAI ? t.probableAI : t.probableReal}`, 12, true);
+      addText(`${t.shareVeredict} ${isAI ? t.probableAI : t.probableReal}`, 12, true);
       addText(`${t.riskScore}: ${result.score}%`, 11);
       addSpace(2);
 
@@ -111,7 +112,7 @@ export const ForensicReport: React.FC<ForensicReportProps> = ({ result, onReset,
       pdf.save(`Relatorio_RealityScan_${result.id || 'scan'}.pdf`);
     } catch (error) {
       console.error('Erro ao gerar PDF:', error);
-      alert('Falha ao gerar o PDF do relatório.');
+      alert(t.pdfGenerateError);
     } finally {
       setIsGeneratingPDF(false);
     }
@@ -119,16 +120,16 @@ export const ForensicReport: React.FC<ForensicReportProps> = ({ result, onReset,
 
   const handleShare = async () => {
     const verdict = isAI ? t.probableAI : t.probableReal;
-    const shareText = `RELATÓRIO FORENSE REALITYSCAN\n\n` +
-      `Veredito: ${verdict}\n` +
-      `Probabilidade de IA: ${result.score}%\n` +
-      `ID do Protocolo: ${result.id || 'N/A'}\n\n` +
-      `Analise suas mídias com precisão forense no RealityScan!`;
+    const shareText = `${t.reportForensicTitle}\n\n` +
+      `${t.shareVeredict} ${verdict}\n` +
+      `${t.shareProbAI} ${result.score}%\n` +
+      `${t.shareProtocolId} ${result.id || 'N/A'}\n\n` +
+      t.shareCta;
     
     const shareUrl = window.location.origin; 
     
     const shareData = {
-      title: 'RealityScan - Relatório de Autenticidade',
+      title: `RealityScan - ${t.reportTitle}`,
       text: shareText,
       url: shareUrl,
     };
@@ -138,20 +139,20 @@ export const ForensicReport: React.FC<ForensicReportProps> = ({ result, onReset,
         await navigator.share(shareData);
       } else {
         await navigator.clipboard.writeText(`${shareText}\n\nLink: ${shareUrl}`);
-        alert('Resumo do relatório copiado para a área de transferência!');
+        alert(t.shareReportCopied);
       }
     } catch (err) {
       if (err instanceof Error && err.name !== 'AbortError') {
         await navigator.clipboard.writeText(`${shareText}\n\nLink: ${shareUrl}`);
-        alert('Resumo do relatório copiado para a área de transferência!');
+        alert(t.shareReportCopied);
       }
     }
   };
   
   return (
-    <div className="w-full max-w-2xl mx-auto min-h-screen bg-gradient-to-b from-[#030712] via-[#050a18] to-[#030712] flex flex-col font-sans animate-in fade-in duration-700">
+    <div className="w-full max-w-2xl mx-auto min-h-screen bg-white flex flex-col font-sans animate-in fade-in duration-700">
       <div ref={reportRef} className="flex-grow space-y-10 px-6 pt-4 pb-20">
-        <div className="relative w-full rounded-[2rem] overflow-hidden border border-white/10 bg-gray-900/50 shadow-2xl shadow-blue-500/5 ring-1 ring-white/5">
+        <div className="relative w-full rounded-[2rem] overflow-hidden border border-gray-200 bg-gray-50 shadow-xl shadow-gray-200 ring-1 ring-gray-100">
           {mediaPreview?.type === 'IMAGE' ? (
             <div className="aspect-[4/3] w-full">
               <img src={mediaPreview.url} alt="Analysed" className="w-full h-full object-cover" />
@@ -169,7 +170,7 @@ export const ForensicReport: React.FC<ForensicReportProps> = ({ result, onReset,
 
         <div className="flex items-end justify-between">
           <div className="space-y-2">
-            <h3 className="text-gray-400 font-bold text-sm">{t.riskScore}</h3>
+            <h3 className="text-gray-700 font-bold text-sm">{t.riskScore}</h3>
             <p className="text-[10px] font-mono text-gray-600 uppercase tracking-widest">ID: {result.id || 'N/A'}</p>
             {result.confidence && (
               <span className={`inline-block px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${
@@ -177,7 +178,7 @@ export const ForensicReport: React.FC<ForensicReportProps> = ({ result, onReset,
                 result.confidence === 'MEDIUM' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
                 'bg-red-500/20 text-red-400 border border-red-500/30'
               }`}>
-                {result.confidence === 'HIGH' ? 'Alta confiança' : result.confidence === 'MEDIUM' ? 'Confiança média' : 'Baixa confiança'}
+                {result.confidence === 'HIGH' ? t.confidenceHigh : result.confidence === 'MEDIUM' ? t.confidenceMedium : t.confidenceLow}
               </span>
             )}
           </div>
@@ -185,7 +186,7 @@ export const ForensicReport: React.FC<ForensicReportProps> = ({ result, onReset,
             <div className={`text-7xl md:text-8xl font-black tracking-tighter ${isAI ? 'text-red-500' : 'text-green-500'}`}>
               {result.score}%
             </div>
-            <p className="text-[9px] text-gray-500 font-medium">prob. IA</p>
+            <p className="text-[9px] text-gray-600 font-medium">{t.probAIShort}</p>
           </div>
         </div>
 
@@ -198,7 +199,7 @@ export const ForensicReport: React.FC<ForensicReportProps> = ({ result, onReset,
     {result.findings.map((finding, idx) => (
       <li key={idx} className="flex space-x-6">
         <span className="text-blue-500 font-black text-xl leading-none">&gt;</span>
-        <p className="text-gray-400 text-sm leading-relaxed font-medium">
+        <p className="text-gray-700 text-sm leading-relaxed font-medium">
           {finding}
         </p>
       </li>
@@ -206,32 +207,32 @@ export const ForensicReport: React.FC<ForensicReportProps> = ({ result, onReset,
   </ul>
 
   {/* Informações do protocolo (substitui relatório duplicado) */}
-  <div className="space-y-4 pt-10 border-t border-white/5">
+  <div className="space-y-4 pt-10 border-t border-gray-200">
     <h3 className="text-amber-500 font-black text-[10px] uppercase tracking-[0.4em]">
       {t.reportMetadata}
     </h3>
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-      <div className="bg-[#0a0f1e] border border-white/5 rounded-xl p-4">
-        <p className="text-[9px] text-gray-500 uppercase tracking-widest mb-1">{t.reportProtocolId}</p>
-        <p className="text-gray-300 text-sm font-mono truncate">{result.id || "N/A"}</p>
+      <div className="bg-gray-100 border border-gray-200 rounded-xl p-4">
+        <p className="text-[9px] text-gray-600 uppercase tracking-widest mb-1">{t.reportProtocolId}</p>
+        <p className="text-gray-800 text-sm font-mono truncate">{result.id || "N/A"}</p>
       </div>
-      <div className="bg-[#0a0f1e] border border-white/5 rounded-xl p-4">
-        <p className="text-[9px] text-gray-500 uppercase tracking-widest mb-1">{t.reportMediaType}</p>
-        <p className="text-gray-300 text-sm">{result.mediaType || result.fileName?.split(".").pop()?.toUpperCase() || "—"}</p>
+      <div className="bg-gray-100 border border-gray-200 rounded-xl p-4">
+        <p className="text-[9px] text-gray-600 uppercase tracking-widest mb-1">{t.reportMediaType}</p>
+        <p className="text-gray-800 text-sm">{result.mediaType || result.fileName?.split(".").pop()?.toUpperCase() || "—"}</p>
       </div>
-      <div className="bg-[#0a0f1e] border border-white/5 rounded-xl p-4">
-        <p className="text-[9px] text-gray-500 uppercase tracking-widest mb-1">{t.reportConfidence}</p>
-        <p className="text-gray-300 text-sm">{result.confidence || "—"}</p>
+      <div className="bg-gray-100 border border-gray-200 rounded-xl p-4">
+        <p className="text-[9px] text-gray-600 uppercase tracking-widest mb-1">{t.reportConfidence}</p>
+        <p className="text-gray-800 text-sm">{result.confidence || "—"}</p>
       </div>
-      <div className="bg-[#0a0f1e] border border-white/5 rounded-xl p-4 sm:col-span-2">
-        <p className="text-[9px] text-gray-500 uppercase tracking-widest mb-1">{t.reportFileName}</p>
-        <p className="text-gray-300 text-sm truncate">{result.fileName || "—"}</p>
+      <div className="bg-gray-100 border border-gray-200 rounded-xl p-4 sm:col-span-2">
+        <p className="text-[9px] text-gray-600 uppercase tracking-widest mb-1">{t.reportFileName}</p>
+        <p className="text-gray-800 text-sm truncate">{result.fileName || "—"}</p>
       </div>
     </div>
     {result.scamAlert && (
       <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4">
         <p className="text-[9px] text-amber-400 uppercase tracking-widest mb-1">{result.scamAlert.type}</p>
-        <p className="text-gray-300 text-sm">{result.scamAlert.description}</p>
+        <p className="text-gray-800 text-sm">{result.scamAlert.description}</p>
       </div>
     )}
   </div>
@@ -239,14 +240,14 @@ export const ForensicReport: React.FC<ForensicReportProps> = ({ result, onReset,
 
 
         {result.groundingLinks && result.groundingLinks.length > 0 && (
-          <div className="space-y-6 pt-10 border-t border-white/5">
+          <div className="space-y-6 pt-10 border-t border-gray-200">
             <h3 className="text-gray-600 font-black text-[9px] uppercase tracking-[0.4em]">
               {t.verificationSources}
             </h3>
             <div className="grid grid-cols-1 gap-3">
               {result.groundingLinks.map((link, idx) => (
-                <a key={idx} href={link.uri} target="_blank" rel="noopener noreferrer" className="block p-5 bg-[#0a0f1e]/60 border border-white/5 rounded-[1.5rem] hover:border-blue-500 transition-all">
-                  <p className="text-[11px] font-black text-white uppercase truncate">{link.title}</p>
+                <a key={idx} href={link.uri} target="_blank" rel="noopener noreferrer" className="block p-5 bg-gray-100 border border-gray-200 rounded-[1.5rem] hover:border-blue-500 transition-all">
+                  <p className="text-[11px] font-black text-gray-900 uppercase truncate">{link.title}</p>
                 </a>
               ))}
             </div>
@@ -255,7 +256,7 @@ export const ForensicReport: React.FC<ForensicReportProps> = ({ result, onReset,
 
         <div className="pt-12 space-y-4 no-print">
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-             <button onClick={handleDownloadPDF} disabled={isGeneratingPDF || !pdfEnabled} title={!pdfEnabled ? 'Ative o relatório PDF no Painel Business' : undefined} className="w-full sm:w-auto px-12 py-5 bg-white text-black rounded-2xl font-black uppercase tracking-[0.3em] text-[10px] flex items-center justify-center space-x-2 hover:bg-gray-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+             <button onClick={handleDownloadPDF} disabled={isGeneratingPDF || !pdfEnabled} title={!pdfEnabled ? t.pdfDisabledTitle : undefined} className="w-full sm:w-auto px-12 py-5 bg-white text-black rounded-2xl font-black uppercase tracking-[0.3em] text-[10px] flex items-center justify-center space-x-2 hover:bg-gray-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
                 {isGeneratingPDF ? (
                    <RefreshCw className="w-4 h-4 animate-spin" />
                 ) : (
@@ -277,7 +278,7 @@ export const ForensicReport: React.FC<ForensicReportProps> = ({ result, onReset,
              
              <button 
                onClick={() => setIsFeedbackOpen(true)} 
-               className="w-full sm:w-auto px-12 py-5 bg-white/5 border border-white/10 text-gray-400 rounded-2xl font-black uppercase tracking-[0.3em] text-[10px] flex items-center justify-center space-x-2 hover:bg-white/10 transition-all"
+               className="w-full sm:w-auto px-12 py-5 bg-gray-100 border border-gray-300 text-gray-700 rounded-2xl font-black uppercase tracking-[0.3em] text-[10px] flex items-center justify-center space-x-2 hover:bg-gray-200 transition-all"
              >
                 <MessageSquare className="w-4 h-4" />
                 <span>{t.reportErrorBtn}</span>
@@ -341,7 +342,7 @@ export const ForensicReport: React.FC<ForensicReportProps> = ({ result, onReset,
                     <textarea 
                       value={feedbackText}
                       onChange={(e) => setFeedbackText(e.target.value)}
-                      placeholder="Ex: Eu mesmo gravei este vídeo ontem..."
+                      placeholder={t.feedbackPlaceholder}
                       className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-sm text-white focus:border-blue-500 outline-none h-24 resize-none"
                     />
                   </div>
@@ -367,7 +368,7 @@ export const ForensicReport: React.FC<ForensicReportProps> = ({ result, onReset,
                           });
                           setFeedbackSubmitted(true);
                         } catch (err) {
-                          alert('Erro ao enviar feedback.');
+                          alert(t.feedbackError);
                         } finally {
                           setIsSubmittingFeedback(false);
                         }

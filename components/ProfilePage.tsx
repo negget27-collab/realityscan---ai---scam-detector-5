@@ -492,29 +492,29 @@ const PlanDetailsView: React.FC<{
 
   return (
     <div className="space-y-6 pb-20 animate-in slide-in-from-right-10 duration-500">
-      <div className={`relative glass-panel rounded-[2.5rem] p-8 md:p-10 space-y-10 shadow-2xl overflow-hidden border ${isBusiness ? 'bg-[#1a140a] border-amber-500/20' : 'bg-[#0a0f1e] border-white/5'}`}>
+      <div className={`relative rounded-[2.5rem] p-8 md:p-10 space-y-10 shadow-2xl overflow-hidden border bg-white ${isBusiness ? 'border-amber-500/30' : 'border-blue-500/20'}`}>
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
           <div className="space-y-3">
             <div className="flex items-center space-x-3">
               <span className={`text-white text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-widest ${isBusiness ? 'bg-amber-600' : 'bg-blue-600'}`}>{t.statusActive}</span>
               <span className="text-[10px] font-mono text-gray-500 uppercase tracking-widest font-black">{plan.level}</span>
             </div>
-            <h2 className="text-5xl font-black text-white uppercase italic tracking-tighter">{plan.name} {isAnnual ? '(ANUAL)' : ''}</h2>
+            <h2 className="text-5xl font-black text-gray-900 uppercase italic tracking-tighter">{plan.name} {isAnnual ? '(ANUAL)' : ''}</h2>
           </div>
           <div className="text-right">
-            <p className={`text-3xl font-black ${isBusiness ? 'text-amber-500' : 'text-blue-400'}`}>{plan.price}</p>
-            <p className="text-[10px] font-mono text-gray-600 uppercase tracking-[0.4em] font-black mt-1">{isAnnual ? t.annualCycle : t.monthlyCycle}</p>
+            <p className={`text-3xl font-black ${isBusiness ? 'text-amber-600' : 'text-blue-600'}`}>{plan.price}</p>
+            <p className="text-[10px] font-mono text-gray-500 uppercase tracking-[0.4em] font-black mt-1">{isAnnual ? t.annualCycle : t.monthlyCycle}</p>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-6 border-t border-white/5">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-6 border-t border-gray-200">
           <div className="space-y-6">
             <h3 className="text-[10px] font-mono text-gray-500 uppercase tracking-[0.5em] font-black">{t.activeProtocols}</h3>
             <ul className="space-y-4">
               {plan.features.map((feature, idx) => (
                 <li key={idx} className="flex items-start space-x-3 group">
                   <div className={`mt-1 w-1.5 h-1.5 rounded-full shrink-0 ${isBusiness ? 'bg-amber-500' : 'bg-blue-500'} group-hover:scale-150 transition-transform`}></div>
-                  <span className="text-xs font-black text-gray-300 uppercase tracking-wider leading-relaxed">{feature}</span>
+                  <span className="text-xs font-black text-gray-700 uppercase tracking-wider leading-relaxed">{feature}</span>
                 </li>
               ))}
             </ul>
@@ -522,22 +522,22 @@ const PlanDetailsView: React.FC<{
 
           <div className="space-y-6">
             <h3 className="text-[10px] font-mono text-gray-500 uppercase tracking-[0.5em] font-black">{t.operationalDetails}</h3>
-            <div className="bg-black/40 border border-white/5 rounded-3xl p-6 space-y-6">
+            <div className="bg-gray-50 border border-gray-200 rounded-3xl p-6 space-y-6">
               <div className="space-y-2">
-                <p className="text-[9px] font-mono text-gray-600 uppercase tracking-widest font-black">{t.autoRenewal}</p>
-                <p className="text-sm font-black text-white">{formattedDate}</p>
+                <p className="text-[9px] font-mono text-gray-500 uppercase tracking-widest font-black">{t.autoRenewal}</p>
+                <p className="text-sm font-black text-gray-900">{formattedDate}</p>
               </div>
               <div className="space-y-2">
-                <p className="text-[9px] font-mono text-gray-600 uppercase tracking-widest font-black">{t.batchLimit}</p>
-                <p className="text-sm font-black text-white uppercase tracking-tighter">
+                <p className="text-[9px] font-mono text-gray-500 uppercase tracking-widest font-black">{t.batchLimit}</p>
+                <p className="text-sm font-black text-gray-900 uppercase tracking-tighter">
                   {isBusiness ? t.batchLimitBusiness : isPremium ? t.batchLimitAdvanced : t.batchLimitFree}
                 </p>
               </div>
               <div className="space-y-2">
-                <p className="text-[9px] font-mono text-gray-600 uppercase tracking-widest font-black">{t.networkPriority}</p>
+                <p className="text-[9px] font-mono text-gray-500 uppercase tracking-widest font-black">{t.networkPriority}</p>
                 <div className="flex space-x-1">
                   {[1, 2, 3, 4, 5].map(i => (
-                    <div key={i} className={`h-1 flex-1 rounded-full ${i <= (isBusiness ? 5 : isPremium ? 3 : 1) ? (isBusiness ? 'bg-amber-500' : 'bg-blue-500') : 'bg-white/5'}`}></div>
+                    <div key={i} className={`h-1 flex-1 rounded-full ${i <= (isBusiness ? 5 : isPremium ? 3 : 1) ? (isBusiness ? 'bg-amber-500' : 'bg-blue-500') : 'bg-gray-200'}`}></div>
                   ))}
                 </div>
               </div>
@@ -546,9 +546,9 @@ const PlanDetailsView: React.FC<{
         </div>
 
         {userId && (
-          <div className="pt-8 border-t border-white/5 space-y-4">
+          <div className="pt-8 border-t border-gray-200 space-y-4">
             <h3 className="text-[10px] font-mono text-gray-500 uppercase tracking-[0.5em] font-black">{t.purchaseHistory}</h3>
-            <div className="bg-black/40 border border-white/5 rounded-3xl p-6 max-h-48 overflow-y-auto">
+            <div className="bg-gray-50 border border-gray-200 rounded-3xl p-6 max-h-48 overflow-y-auto">
               {loadingPurchases ? (
                 <p className="text-xs text-gray-500 font-mono">Carregando...</p>
               ) : purchases.length === 0 ? (
@@ -556,8 +556,8 @@ const PlanDetailsView: React.FC<{
               ) : (
                 <ul className="space-y-3">
                   {purchases.map((p) => (
-                    <li key={p.id} className="flex justify-between items-center py-2 border-b border-white/5 last:border-0">
-                      <span className="text-xs font-black text-gray-300 uppercase">
+                    <li key={p.id} className="flex justify-between items-center py-2 border-b border-gray-200 last:border-0">
+                      <span className="text-xs font-black text-gray-700 uppercase">
                         {p.type === 'credits' ? t.purchaseTypeCredits : t.purchaseTypeSubscription} — {p.planId}
                         {p.amount ? ` (+${p.amount})` : ''}
                       </span>
@@ -600,7 +600,7 @@ const PlanDetailsView: React.FC<{
             <div className="flex flex-col sm:flex-row gap-4">
               <button 
                 onClick={() => window.open('https://www.mercadopago.com.br/subscriptions', '_blank')}
-                className="flex-1 py-5 bg-white/5 border border-white/10 text-gray-400 rounded-2xl font-black uppercase tracking-[0.2em] hover:bg-white/10 hover:text-white transition-all text-[10px]"
+                className="flex-1 py-5 bg-gray-100 border border-gray-200 text-gray-700 rounded-2xl font-black uppercase tracking-[0.2em] hover:bg-gray-200 transition-all text-[10px]"
               >
                 {t.manageSubscription}
               </button>
@@ -966,12 +966,6 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
               </>
             ) : (
               <>
-                <MenuButton 
-                  theme={theme}
-                  label={t.switchAccount} 
-                  onClick={() => onOpenLoginPage ? onOpenLoginPage() : setShowAuthModal(true)} 
-                  icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>} 
-                />
                 {userEmail === 'negget27@gmail.com' && onAdminClick ? (
                   <MenuButton 
                     theme={theme}

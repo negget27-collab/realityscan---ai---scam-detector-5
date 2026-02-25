@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { getAnalysesHistory } from '../services/firebase';
 import { auth } from '../services/firebase';
-import { Database, Search, Download, FileText, ChevronRight, ArrowLeft, RefreshCw, X, AlertTriangle } from 'lucide-react';
+import { Database, Search, Download, FileText, ChevronRight, RefreshCw, X, AlertTriangle } from 'lucide-react';
 import { useI18n } from '../services/i18n-temp';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -104,13 +104,6 @@ RealityScan Defense Division
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white text-gray-900 animate-in fade-in duration-700 font-sans">
       <div className="max-w-6xl mx-auto p-6 md:p-10">
         <header className="mb-10">
-          <button 
-            onClick={onBack}
-            className="flex items-center space-x-2 text-[10px] font-black text-blue-600 uppercase tracking-widest hover:text-blue-500 transition-colors group mb-6"
-          >
-            <ArrowLeft className="w-4 h-4 transform group-hover:-translate-x-1 transition-transform" />
-            <span>{t.backToTerminal}</span>
-          </button>
           <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6">
             <div>
               <div className="flex items-center gap-3 mb-2">

@@ -62,6 +62,21 @@ export type I18nKeys = {
   send: string;
   sending: string;
   close: string;
+  confidenceHigh: string;
+  confidenceMedium: string;
+  confidenceLow: string;
+  probAIShort: string;
+  reportForensicTitle: string;
+  shareVeredict: string;
+  shareProbAI: string;
+  shareProtocolId: string;
+  shareCta: string;
+  feedbackPlaceholder: string;
+  feedbackError: string;
+  shareReportCopied: string;
+  pdfDisabledTitle: string;
+  pdfGenerateError: string;
+  reportIdLabel: string;
   // Limit Modal
   limitModalTitle: string;
   limitModalDesc: string;
@@ -95,6 +110,9 @@ export type I18nKeys = {
   credits: string;
   monthly: string;
   syncAccount: string;
+  syncPlanTitle: string;
+  themeDark: string;
+  themeLight: string;
   syncing: string;
   operationalMgmt: string;
   myPlan: string;
@@ -628,6 +646,21 @@ const translations: Record<Language, I18nKeys> = {
     send: "Enviar",
     sending: "Enviando...",
     close: "Fechar",
+    confidenceHigh: "Alta confiança",
+    confidenceMedium: "Confiança média",
+    confidenceLow: "Baixa confiança",
+    probAIShort: "prob. IA",
+    reportForensicTitle: "RELATÓRIO FORENSE REALITYSCAN",
+    shareVeredict: "Veredito:",
+    shareProbAI: "Probabilidade de IA:",
+    shareProtocolId: "ID do Protocolo:",
+    shareCta: "Analise suas mídias com precisão forense no RealityScan!",
+    feedbackPlaceholder: "Ex: Eu mesmo gravei este vídeo ontem...",
+    feedbackError: "Erro ao enviar feedback.",
+    shareReportCopied: "Resumo do relatório copiado para a área de transferência!",
+    pdfDisabledTitle: "Ative o relatório PDF no Painel Business",
+    pdfGenerateError: "Falha ao gerar o PDF do relatório.",
+    reportIdLabel: "ID",
     limitModalTitle: "Você usou seus 3 scans gratuitos",
     limitModalDesc: "Proteja-se de golpes e deepfakes 24/7. Análises ilimitadas, suporte prioritário e relatórios forenses. A partir de R$ 21,90/mês — menos que um café por dia.",
     limitModalPremium: "Desbloqueie este recurso e proteja quem você ama. Planos a partir de R$ 21,90/mês com análise de vídeos, áudios e muito mais.",
@@ -658,6 +691,9 @@ const translations: Record<Language, I18nKeys> = {
     credits: "Créditos",
     monthly: "Mensal",
     syncAccount: "Sincronizar Conta",
+    syncPlanTitle: "Sincronizar Plano",
+    themeDark: "Tema escuro",
+    themeLight: "Tema claro",
     syncing: "Sincronizando...",
     operationalMgmt: "Gerenciamento Operacional",
     myPlan: "Meu plano",
@@ -1159,6 +1195,21 @@ const translations: Record<Language, I18nKeys> = {
     send: "Send",
     sending: "Sending...",
     close: "Close",
+    confidenceHigh: "High confidence",
+    confidenceMedium: "Medium confidence",
+    confidenceLow: "Low confidence",
+    probAIShort: "AI prob.",
+    reportForensicTitle: "REALITYSCAN FORENSIC REPORT",
+    shareVeredict: "Verdict:",
+    shareProbAI: "AI Probability:",
+    shareProtocolId: "Protocol ID:",
+    shareCta: "Analyze your media with forensic precision on RealityScan!",
+    feedbackPlaceholder: "E.g.: I recorded this video yesterday...",
+    feedbackError: "Error sending feedback.",
+    shareReportCopied: "Report summary copied to clipboard!",
+    pdfDisabledTitle: "Enable PDF report in Business Panel",
+    pdfGenerateError: "Failed to generate report PDF.",
+    reportIdLabel: "ID",
     limitModalTitle: "You've used your 3 free scans",
     limitModalDesc: "Protect yourself from scams and deepfakes 24/7. Unlimited analyses, priority support and forensic reports. From $3.99/month — less than a coffee a day.",
     limitModalPremium: "Unlock this feature and protect those you love. Plans from $3.99/month with video, audio analysis and more.",
@@ -1189,6 +1240,9 @@ const translations: Record<Language, I18nKeys> = {
     credits: "Credits",
     monthly: "Monthly",
     syncAccount: "Sync Account",
+    syncPlanTitle: "Sync Plan",
+    themeDark: "Dark theme",
+    themeLight: "Light theme",
     syncing: "Syncing...",
     operationalMgmt: "Operational Management",
     myPlan: "My plan",
@@ -1690,6 +1744,21 @@ const translations: Record<Language, I18nKeys> = {
     send: "Enviar",
     sending: "Enviando...",
     close: "Cerrar",
+    confidenceHigh: "Alta confianza",
+    confidenceMedium: "Confianza media",
+    confidenceLow: "Baja confianza",
+    probAIShort: "prob. IA",
+    reportForensicTitle: "INFORME FORENSE REALITYSCAN",
+    shareVeredict: "Veredicto:",
+    shareProbAI: "Probabilidad de IA:",
+    shareProtocolId: "ID del Protocolo:",
+    shareCta: "¡Analiza tus medios con precisión forense en RealityScan!",
+    feedbackPlaceholder: "Ej: Yo mismo grabé este vídeo ayer...",
+    feedbackError: "Error al enviar el comentario.",
+    shareReportCopied: "Resumen del informe copiado al portapapeles.",
+    pdfDisabledTitle: "Active el informe PDF en el Panel Business",
+    pdfGenerateError: "Error al generar el PDF del informe.",
+    reportIdLabel: "ID",
     limitModalTitle: "Has usado tus 3 escaneos gratuitos",
     limitModalDesc: "Protégete de estafas y deepfakes 24/7. Análisis ilimitados, soporte prioritario e informes forenses. Desde 3,99 USD/mes — menos que un café al día.",
     limitModalPremium: "Desbloquea esta función y protege a quien amas. Planes desde 3,99 USD/mes con análisis de vídeo, audio y más.",
@@ -1720,6 +1789,7 @@ const translations: Record<Language, I18nKeys> = {
     credits: "Créditos",
     monthly: "Mensual",
     syncAccount: "Sincronizar Cuenta",
+    syncPlanTitle: "Sincronizar plan",
     syncing: "Sincronizando...",
     operationalMgmt: "Gestión Operativa",
     myPlan: "Mi plan",

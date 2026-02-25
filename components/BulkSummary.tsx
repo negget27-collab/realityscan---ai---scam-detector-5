@@ -1,9 +1,8 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { AnalysisResult } from '../types';
-import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
-import { Download, RefreshCw, ArrowLeft, LayoutGrid, FileText } from 'lucide-react';
+import { Download, RefreshCw, LayoutGrid, FileText } from 'lucide-react';
 import { useI18n } from '../services/i18n-temp';
 
 interface BulkSummaryProps {
@@ -25,26 +24,86 @@ export const BulkSummary: React.FC<BulkSummaryProps> = ({ results, onBack, onVie
   const avgRisk = Math.round(results.reduce((acc, curr) => acc + curr.score, 0) / results.length);
 
   const handleDownloadPDF = async () => {
-    if (!summaryRef.current) return;
     setIsGeneratingPDF(true);
-    
     try {
-      const element = summaryRef.current;
-      const canvas = await html2canvas(element, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: '#030712',
-        logging: false,
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const pageW = pdf.internal.pageSize.getWidth();
+      const margin = 15;
+      let y = margin;
+
+      // Título
+      pdf.setFontSize(22);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('RealityScan — Sumário de Lote Business', margin, y);
+      y += 10;
+
+      pdf.setFontSize(9);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(`Gerado em ${new Date().toLocaleString('pt-BR')}`, margin, y);
+      y += 12;
+
+      // Resumo
+      pdf.setFontSize(12);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Resumo', margin, y);
+      y += 8;
+
+      pdf.setFontSize(10);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(`Total de análises: ${results.length}`, margin, y);
+      y += 6;
+      pdf.text(`Detectados como IA: ${totalAI}`, margin, y);
+      y += 6;
+      pdf.text(`Risco médio: ${avgRisk}%`, margin, y);
+      y += 14;
+
+      // Tabela de resultados
+      pdf.setFontSize(12);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Resultados', margin, y);
+      y += 8;
+
+      const contentW = pageW - margin * 2;
+      const colW = { n: 8, file: contentW - 70, type: 22, score: 18, result: 22 };
+      const thY = y;
+
+      pdf.setFontSize(9);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('#', margin, thY);
+      pdf.text('Arquivo', margin + colW.n, thY);
+      pdf.text('Tipo', margin + colW.n + colW.file, thY);
+      pdf.text('Score', margin + colW.n + colW.file + colW.type, thY);
+      pdf.text('Resultado', margin + colW.n + colW.file + colW.type + colW.score, thY);
+      y += 7;
+
+      pdf.setDrawColor(200, 200, 200);
+      pdf.line(margin, y, pageW - margin, y);
+      y += 6;
+
+      pdf.setFont('helvetica', 'normal');
+      results.forEach((r, i) => {
+        if (y > 270) {
+          pdf.addPage();
+          y = margin;
+        }
+        const label = r.score >= 50 ? 'IA' : 'REAL';
+        const shortName = r.fileName.length > 35 ? r.fileName.slice(0, 32) + '...' : r.fileName;
+        pdf.text(String(i + 1), margin, y);
+        pdf.text(shortName, margin + colW.n, y);
+        pdf.text(r.mediaType || '-', margin + colW.n + colW.file, y);
+        pdf.text(`${r.score}%`, margin + colW.n + colW.file + colW.type, y);
+        pdf.setTextColor(r.score >= 50 ? 200 : 0, r.score >= 50 ? 0 : 150, r.score >= 50 ? 0 : 100);
+        pdf.text(label, margin + colW.n + colW.file + colW.type + colW.score, y);
+        pdf.setTextColor(0, 0, 0);
+        y += 7;
       });
-      
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'px',
-        format: [canvas.width, canvas.height]
-      });
-      
-      pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+
+      y += 10;
+      pdf.setFontSize(8);
+      pdf.setTextColor(120, 120, 120);
+      pdf.text('RealityScan — IA & Scan-detector', margin, y);
+      pdf.text('Processamento de Alta Escala Operacional', margin, y + 5);
+
       pdf.save(`Sumario_Lote_RealityScan_${Date.now()}.pdf`);
     } catch (error) {
       console.error('Erro ao gerar PDF:', error);
@@ -59,13 +118,6 @@ export const BulkSummary: React.FC<BulkSummaryProps> = ({ results, onBack, onVie
       <div ref={summaryRef} className="space-y-10 bg-[#030712] p-4 rounded-[2rem]">
         <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
           <div className="space-y-2">
-            <button 
-              onClick={onBack}
-              className="flex items-center space-x-2 text-[10px] font-black text-blue-500 uppercase tracking-widest hover:text-blue-400 transition-colors group no-print"
-            >
-              <ArrowLeft className="w-4 h-4 transform group-hover:-translate-x-1 transition-transform" />
-              <span>{t.backToTerminal}</span>
-            </button>
             <h1 className="text-4xl font-black text-white uppercase tracking-tighter">Painel de Lote <span className="text-amber-500">Business</span></h1>
             <p className="text-[9px] font-mono text-gray-500 uppercase tracking-[0.4em] font-black">Processamento de Alta Escala Operacional</p>
           </div>

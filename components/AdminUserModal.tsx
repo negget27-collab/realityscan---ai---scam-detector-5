@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, User, CreditCard, Cpu, Shield, Mail, Lock, Calendar, Ban, Key, Gift, RefreshCw } from 'lucide-react';
+import { useI18n } from '../services/i18n-temp';
 
 interface AdminUserModalProps {
   user: any;
@@ -10,6 +11,7 @@ interface AdminUserModalProps {
 }
 
 export const AdminUserModal: React.FC<AdminUserModalProps> = ({ user, purchases, analyses, onClose, onAction }) => {
+  const { t } = useI18n();
   const [activeTab, setActiveTab] = useState<'dados' | 'assinatura' | 'uso'>('dados');
   const statusColor = (s: string) => {
     if (s === 'active' || s === 'ativo') return 'text-emerald-400';
@@ -124,11 +126,11 @@ export const AdminUserModal: React.FC<AdminUserModalProps> = ({ user, purchases,
                 </div>
                 <div className="p-4 rounded-xl bg-white/5 border border-white/5 text-center">
                   <p className="text-2xl font-black text-purple-400">{user.credits || 0}</p>
-                  <p className="text-[9px] font-mono text-gray-500 uppercase">Créditos</p>
+                  <p className="text-[9px] font-mono text-gray-500 uppercase">{t.credits}</p>
                 </div>
                 <div className="p-4 rounded-xl bg-white/5 border border-white/5 text-center">
                   <p className="text-2xl font-black text-amber-400">{user.monthlyCredits || 0}</p>
-                  <p className="text-[9px] font-mono text-gray-500 uppercase">Mensal</p>
+                  <p className="text-[9px] font-mono text-gray-500 uppercase">{t.monthly}</p>
                 </div>
               </div>
             </div>
