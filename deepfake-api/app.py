@@ -76,7 +76,7 @@ def load_models():
             continue
         try:
             model = DeepFakeClassifier(encoder="tf_efficientnet_b7_ns").to(DEVICE)
-            ckpt = torch.load(fpath, map_location="cpu", weights_only=True)
+            ckpt = torch.load(fpath, map_location="cpu", weights_only=False)
             state = ckpt.get("state_dict", ckpt)
             model.load_state_dict({re.sub(r"^module\.", "", k): v for k, v in state.items()}, strict=True)
             model.eval()
@@ -91,7 +91,7 @@ def load_models():
                 DEVICE = "cpu"
                 use_half = False
                 model = DeepFakeClassifier(encoder="tf_efficientnet_b7_ns").to("cpu")
-                ckpt = torch.load(fpath, map_location="cpu", weights_only=True)
+                ckpt = torch.load(fpath, map_location="cpu", weights_only=False)
                 state = ckpt.get("state_dict", ckpt)
                 model.load_state_dict({re.sub(r"^module\.", "", k): v for k, v in state.items()}, strict=True)
                 model.eval()

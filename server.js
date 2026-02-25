@@ -23,9 +23,11 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
+// Necessário quando o app está atrás de proxy (Vite, nginx, load balancer) - evita ERR_ERL_UNEXPECTED_X_FORWARDED_FOR
+app.set('trust proxy', 1);
 app.use(cors());
 app.use((req, res, next) => {
-  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
+  res.setHeader('Cross-Origin-Opener-Policy', 'unsafe-none'); // same-origin-allow-popups bloqueava popup OAuth (Firebase)
   next();
 });
 app.use(express.json({ limit: '15mb' })); // Sentry envia 3 frames base64; padrão 100kb é insuficiente

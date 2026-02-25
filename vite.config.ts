@@ -32,7 +32,7 @@ export default defineConfig(({ mode }) => {
       'import.meta.env.VITE_OPENROUTER_KEY': JSON.stringify(openRouterKey),
     },
     server: {
-      headers: { 'Cross-Origin-Opener-Policy': 'same-origin-allow-popups' },
+      headers: { 'Cross-Origin-Opener-Policy': 'unsafe-none' }, // same-origin-allow-popups bloqueava popup OAuth (Firebase)
       host: true, // permite acesso pelo celular na mesma rede (ex: http://192.168.x.x:5173)
       port: 5173,
       strictPort: false,
