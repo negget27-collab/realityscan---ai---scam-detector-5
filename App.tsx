@@ -304,7 +304,16 @@ const App: React.FC = () => {
     return () => unsubscribe?.();
   }, []);
 
-
+  // Usuário restaurado pelo Firebase (persistência) — evita mostrar EntryChoice e mantém rs_app_mode
+  useEffect(() => {
+    if (user) {
+      setShowEntryChoice(false);
+      try {
+        const m = localStorage.getItem('rs_app_mode');
+        if (m !== 'user' && m !== 'corporate') localStorage.setItem('rs_app_mode', 'user');
+      } catch (_) {}
+    }
+  }, [user]);
 
 
 
@@ -960,7 +969,7 @@ results.push(result);
   };
 
   if (showSplash) return <Splash onEnter={handleEnterTerminal} />;
-  if (showEntryChoice) return <EntryChoice onSelect={handleEntrySelect} />;
+  if (showEntryChoice && !user) return <EntryChoice onSelect={handleEntrySelect} />;
   if (appMode === 'corporate') {
     const corporateApiKey = getStoredCorporateApiKey();
     if (!corporateApiKey) {

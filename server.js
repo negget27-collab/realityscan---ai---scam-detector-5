@@ -805,7 +805,7 @@ app.post("/api/scan", scanLimiter, upload.single("file"), async (req, res) => {
             const score = Math.round(df.fake * 100);
             const isAI = df.fake >= 0.5;
             const confidence = df.fake >= 0.8 || df.fake <= 0.2 ? "HIGH" : df.fake >= 0.4 ? "MEDIUM" : "LOW";
-            const texto = `**Análise:** Detecção EfficientNet B7.\n**Nível de Risco:** ${score}%\n**Motivo:** ${df.resultado}\n**Orientação:** ${isAI ? "Conteúdo suspeito de manipulação. Evite compartilhar ou confiar sem verificação adicional." : "Análise concluída. Sem sinais fortes de deepfake."}`;
+            const texto = `**Análise:** EfficientNet B7 — rede neural treinada em milhares de vídeos reais e falsos (DFDC) para detectar deepfakes. Extrai 32 frames do vídeo e analisa artefatos de manipulação facial e sintética.\n**Nível de Risco:** ${score}%\n**Motivo:** ${df.resultado}\n**Orientação:** ${isAI ? "Conteúdo suspeito de manipulação. Evite compartilhar ou confiar sem verificação adicional." : "Análise concluída. Sem sinais fortes de deepfake."}`;
             const result = formatAnalysisResponse(texto, String(score));
             if (isFreeScan && deviceId) {
               try { await incrementFreeUsage(deviceId, ip); } catch (e) { console.warn("⚠️ incrementFreeUsage failed:", e.message); }
@@ -1011,7 +1011,7 @@ REGRAS:
       if (dfResult && (dfResult.score_fake_pct != null || dfResult.fake != null)) {
         const pct = dfResult.score_fake_pct ?? (dfResult.fake != null ? dfResult.fake * 100 : 0);
         sentryDfScore = Math.max(sentryDfScore, pct);
-        const dfNote = `\n\n--- Validação EfficientNet B7 ---\nDetector de deepfake: ${dfResult.resultado || 'N/A'} (${Number(pct).toFixed(1)}% prob. fake).`;
+        const dfNote = `\n\n--- Validação EfficientNet B7 ---\nRede neural visual treinada em deepfakes (DFDC). Resultado: ${dfResult.resultado || 'N/A'}. Probabilidade de manipulação: ${Number(pct).toFixed(1)}%.`;
         texto = texto + dfNote;
       }
       if (voiceResult && (voiceResult.score_synthetic_pct ?? voiceResult.synthetic * 100) >= 30) {
