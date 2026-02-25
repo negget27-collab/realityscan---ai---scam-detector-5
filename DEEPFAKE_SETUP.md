@@ -4,6 +4,30 @@ Este guia descreve as **etapas manuais** para ativar o detector de deepfake em v
 
 ---
 
+## ✅ Última etapa manual (quando quiser ativar o GPU)
+
+O sistema EfficientNet já está **reintegrado e preparado** no código. Para ativar:
+
+1. **RunPod:** criar pod GPU (RTX 3090/A5000, PyTorch, Ubuntu 22.04) e abrir o terminal.
+2. **No pod:** clonar o repo (ou enviar a pasta `deepfake-api`), depois:
+   ```bash
+   cd deepfake-api
+   chmod +x run_setup.sh && ./run_setup.sh
+   export DFDC_DIR=/app/dfdc_deepfake_challenge
+   export WEIGHTS_DIR=/app/weights
+   python app.py
+   ```
+3. **RunPod:** mapear porta 8000 (TCP Port Mappings) e copiar a URL pública (ex: `https://xxxx-8000.proxy.runpod.net`).
+4. **No projeto:** no `.env.local` na raiz do RealityScan:
+   ```env
+   DEEPFAKE_API_URL=https://SUA_URL_RUNPOD
+   ```
+5. Reiniciar o backend. No log deve aparecer: `✔ Deepfake API acessível em ...`.
+
+A partir daí: **upload de vídeo** e **Sentry** passam a usar EfficientNet B7 (e, no mesmo servidor, wav2vec2 para voz e SyncNet para lip-sync).
+
+---
+
 ## ❌ Resolver erro "Deepfake API 404: Not Found"
 
 Se o backend mostrar **Deepfake API 404** ou **Deepfake API inacessível**, a URL em `DEEPFAKE_API_URL` não está a responder. Duas formas de resolver:
