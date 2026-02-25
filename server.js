@@ -132,23 +132,15 @@ if (deepfakeBase) {
       clearTimeout(t);
       if (res.ok) {
         console.log("✔ Deepfake API acessível em", deepfakeBase);
+      } else if (res.status === 502 || res.status === 503) {
+        console.warn("⚠️ EfficientNet API indisponível (" + res.status + "). O app continuará; análises usarão os agentes de IA. Inicie o pod RunPod ou use npm run deepfake:up para API local.");
       } else {
-        console.error(
-          "❌ Deepfake API devolveu",
-          res.status,
-          "em",
-          healthUrl,
-          "\n  Para resolver: (1) Subir API local: npm run deepfake:up e no .env.local use DEEPFAKE_API_URL=http://localhost:8000  (2) Ou iniciar o pod RunPod e colocar a URL correta em DEEPFAKE_API_URL."
-        );
+        console.warn("⚠️ Deepfake API devolveu", res.status, "em", healthUrl, "— app continuará sem EfficientNet.");
       }
     })
     .catch((err) => {
       clearTimeout(t);
-      console.error(
-        "❌ Deepfake API inacessível:",
-        err.message || err,
-        "\n  Para resolver: (1) Subir API local: npm run deepfake:up e no .env.local use DEEPFAKE_API_URL=http://localhost:8000  (2) Ou iniciar o pod RunPod e colocar a URL correta em DEEPFAKE_API_URL."
-      );
+      console.warn("⚠️ EfficientNet API inacessível:", err.message || err, "— app continuará; configure DEEPFAKE_API_URL ou inicie o pod RunPod.");
     });
 }
 
