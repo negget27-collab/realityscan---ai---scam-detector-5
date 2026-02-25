@@ -38,6 +38,10 @@ export async function analyzeVideoDeepfake(videoBuffer, mimeType, fileName = 'vi
 
     if (!res.ok) {
       const errText = await res.text();
+      if (res.status === 502 || res.status === 503) {
+        console.warn(`[Deepfake] API retornou ${res.status} (vídeo). Usando fallback.`);
+        return null;
+      }
       throw new Error(`Deepfake API ${res.status}: ${errText || res.statusText}`);
     }
 
@@ -83,6 +87,11 @@ export async function analyzeFramesDeepfake(frames) {
 
     if (!res.ok) {
       const errText = await res.text();
+      // 502/503 do RunPod: fallback silencioso para não quebrar o fluxo
+      if (res.status === 502 || res.status === 503) {
+        console.warn(`[Deepfake] API retornou ${res.status} (Bad Gateway/Unavailable). Usando fallback.`);
+        return null;
+      }
       throw new Error(`Deepfake API ${res.status}: ${errText || res.statusText}`);
     }
 

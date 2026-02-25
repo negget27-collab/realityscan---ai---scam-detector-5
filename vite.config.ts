@@ -45,7 +45,8 @@ export default defineConfig(({ mode }) => {
         '/api': {
           target: 'http://127.0.0.1:3001',
           changeOrigin: true,
-          secure: false
+          secure: false,
+          timeout: 120000 // 2 min — evita 502 quando /api/scan espera EfficientNet (até 90s)
         }
       }
     }
